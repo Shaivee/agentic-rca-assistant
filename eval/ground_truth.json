@@ -1,0 +1,204 @@
+[
+  {
+    "id": "F1",
+    "window": [
+      "2026-09-06 09:00",
+      "2026-09-06 18:30"
+    ],
+    "category": "dosing_equipment",
+    "equipment": "P-301",
+    "quality_impact": true,
+    "symptom": "low brightness",
+    "root_cause": "Peroxide dosing pump P-301 diaphragm tore, cutting H2O2 dose ~38%; brightness fell ~30 min later.",
+    "key_evidence": [
+      "peroxide_dose drop",
+      "30 min lag peroxide->brightness",
+      "P-301 maintenance log"
+    ],
+    "distractors": [
+      "Conveyor C-12 maintenance at 11:05"
+    ],
+    "affected_batches": [
+      "B-1033",
+      "B-1034",
+      "B-1035"
+    ],
+    "failed_batches": [
+      "B-1034"
+    ]
+  },
+  {
+    "id": "F2",
+    "window": [
+      "2026-09-11 00:30",
+      "2026-09-11 08:30"
+    ],
+    "category": "steam_supply",
+    "equipment": "TV-210",
+    "quality_impact": true,
+    "symptom": "low brightness",
+    "root_cause": "Steam valve TV-210 positioner leak dropped bleach temperature ~8 degC, reducing bleaching.",
+    "key_evidence": [
+      "bleach_temp drop",
+      "TV-210 maintenance log"
+    ],
+    "distractors": [],
+    "affected_batches": [
+      "B-1061",
+      "B-1062",
+      "B-1063"
+    ],
+    "failed_batches": [
+      "B-1062"
+    ]
+  },
+  {
+    "id": "F3",
+    "window": [
+      "2026-09-15 02:00",
+      "2026-09-15 14:00"
+    ],
+    "category": "sensor_fault",
+    "equipment": "AT-305",
+    "quality_impact": false,
+    "symptom": "high pH alarms",
+    "root_cause": "pH probe AT-305 fouled and read ~0.7 high. Real pH was normal; product quality unaffected.",
+    "key_evidence": [
+      "bleach_ph alarms",
+      "brightness normal",
+      "AT-305 recalibration log"
+    ],
+    "distractors": [
+      "pH alarms suggest a process problem that does not exist"
+    ],
+    "affected_batches": [
+      "B-1085",
+      "B-1086",
+      "B-1087",
+      "B-1088"
+    ],
+    "failed_batches": []
+  },
+  {
+    "id": "F4",
+    "window": [
+      "2026-09-18 00:00",
+      "2026-09-22 08:00"
+    ],
+    "category": "equipment_wear",
+    "equipment": "PF-2",
+    "quality_impact": true,
+    "symptom": "high defect rate",
+    "root_cause": "Press felt PF-2 left in service past its 18-day planned life; wear raised WIS defects until replaced.",
+    "key_evidence": [
+      "gradual defect_rate rise",
+      "felt age 22 days",
+      "PF-2 replacement log"
+    ],
+    "distractors": [],
+    "affected_batches": [
+      "B-1103",
+      "B-1104",
+      "B-1105",
+      "B-1106",
+      "B-1107",
+      "B-1108",
+      "B-1109",
+      "B-1110",
+      "B-1111",
+      "B-1112",
+      "B-1113",
+      "B-1114",
+      "B-1115",
+      "B-1116",
+      "B-1117",
+      "B-1118",
+      "B-1119",
+      "B-1120",
+      "B-1121",
+      "B-1122",
+      "B-1123",
+      "B-1124",
+      "B-1125",
+      "B-1126",
+      "B-1127",
+      "B-1128"
+    ],
+    "failed_batches": [
+      "B-1112",
+      "B-1114",
+      "B-1115",
+      "B-1116",
+      "B-1117",
+      "B-1118",
+      "B-1119",
+      "B-1120",
+      "B-1121",
+      "B-1122",
+      "B-1123",
+      "B-1124",
+      "B-1125",
+      "B-1126",
+      "B-1127",
+      "B-1128"
+    ]
+  },
+  {
+    "id": "F5",
+    "window": [
+      "2026-09-25 04:00",
+      "2026-09-26 00:00"
+    ],
+    "category": "raw_material",
+    "equipment": "PULP",
+    "quality_impact": true,
+    "symptom": "low brightness",
+    "root_cause": "Pulp lot NF-0001 from new supplier NorthFiber bleached poorly; no process variable deviated.",
+    "key_evidence": [
+      "no process deviation",
+      "material change to NF-0001",
+      "brightness drop matches lot window"
+    ],
+    "distractors": [],
+    "affected_batches": [
+      "B-1146",
+      "B-1147",
+      "B-1148",
+      "B-1149",
+      "B-1150"
+    ],
+    "failed_batches": [
+      "B-1146",
+      "B-1147",
+      "B-1148",
+      "B-1149"
+    ]
+  },
+  {
+    "id": "F6",
+    "window": [
+      "2026-09-28 06:00",
+      "2026-09-28 17:00"
+    ],
+    "category": "filtration",
+    "equipment": "DF-1",
+    "quality_impact": true,
+    "symptom": "high effluent TSS",
+    "root_cause": "Disc filter DF-1 screens blinded with fines; rising differential pressure let solids through.",
+    "key_evidence": [
+      "filter_dp rise",
+      "effluent_tss rise",
+      "DF-1 wash log"
+    ],
+    "distractors": [],
+    "affected_batches": [
+      "B-1164",
+      "B-1165",
+      "B-1166",
+      "B-1167"
+    ],
+    "failed_batches": [
+      "B-1166"
+    ]
+  }
+]
