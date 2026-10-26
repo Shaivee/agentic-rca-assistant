@@ -9,8 +9,8 @@ and writes an evidence-backed root-cause report.
 
 ## Roadmap
 - [x] Phase 1 — Synthetic plant data with 6 injected faults and hidden ground truth
-- [ ] Phase 2 — RCA analytics toolkit
-- [ ] Phase 3 — RAG knowledge base (SOPs + past incidents)
+- [x] Phase 2 — RCA analytics toolkit (anomalies, batch comparison, lagged cross-correlation, event correlation)
+- [x] Phase 3 — RAG knowledge base: 7 SOPs + 9 past incidents, hybrid BM25 + embeddings with RRF
 - [ ] Phase 4 — Agents + LangGraph orchestration
 - [ ] Phase 5 — Guardrails + critic loop
 - [ ] Phase 6 — Evaluation harness
@@ -20,7 +20,10 @@ and writes an evidence-backed root-cause report.
 ```bash
 pip install -r requirements.txt
 python -m rca.simulation      # creates data/plant.db and eval/ground_truth.json
+pytest -q                     # 19 tests, no API key needed
 ```
+
+Optional: `export OPENAI_API_KEY=...` switches retrieval from BM25-only to hybrid (BM25 + embeddings).
 
 ## The simulated plant
 30 days of one paper machine (5-minute readings, 4-hour batches, 180 batches) with six injected faults:
