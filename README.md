@@ -11,7 +11,7 @@ and writes an evidence-backed root-cause report.
 - [x] Phase 1 — Synthetic plant data with 6 injected faults and hidden ground truth
 - [x] Phase 2 — RCA analytics toolkit (anomalies, batch comparison, lagged cross-correlation, event correlation)
 - [x] Phase 3 — RAG knowledge base: 7 SOPs + 9 past incidents, hybrid BM25 + embeddings with RRF
-- [ ] Phase 4 — Agents + LangGraph orchestration
+- [x] Phase 4 — Agents + LangGraph orchestration: planner, tool-calling data analyst, retrieval, report writer
 - [ ] Phase 5 — Guardrails + critic loop
 - [ ] Phase 6 — Evaluation harness
 - [ ] Phase 7 — MCP server, API, Docker
@@ -23,7 +23,27 @@ python -m rca.simulation      # creates data/plant.db and eval/ground_truth.json
 pytest -q                     # 19 tests, no API key needed
 ```
 
-Optional: `export OPENAI_API_KEY=...` switches retrieval from BM25-only to hybrid (BM25 + embeddings).
+### Run an investigation
+1. Get a free API key at [console.groq.com](https://console.groq.com) and put it in `.env`
+   (see `.env.example`). OpenAI also works (`LLM_PROVIDER=openai`).
+2. Ask a question:
+```bash
+python -m rca.cli "Why did batch B-1034 fail the brightness spec?"
+```
+Retrieval uses local embeddings (`fastembed`, no key needed; the model downloads on first run)
+plus BM25. Tests use a scripted fake LLM, so `pytest` never needs an API key.
+
+## Architecture
+```
+question -> Planner -> +-> Data Analyst (tool calling) -+-> RCA Writer -> report
+                       +-> Knowledge (hybrid RAG) ------+
+```
+| Node | Role | LLM? |
+|---|---|---|
+| Planner | Extracts batch id, symptom and hypotheses; batch facts come from the DB | yes (structured output) |
+| Data Analyst | Calls the RCA toolkit (anomalies, batch comparison, lagged correlation, events, read-only SQL) | yes (tool calling) |
+| Knowledge | Searches SOPs and past incidents for the symptom and every hypothesis | no |
+| RCA Writer | Evidence-backed report validated against a Pydantic schema | yes (structured output) |
 
 ## The simulated plant
 30 days of one paper machine (5-minute readings, 4-hour batches, 180 batches) with six injected faults:

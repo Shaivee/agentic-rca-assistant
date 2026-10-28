@@ -24,25 +24,29 @@ Why Reciprocal Rank Fusion (RRF)?
       rrf_score(doc) = sum over retrievers of 1 / (k + rank)      (k = 60 by convention)
   A document ranked well by both retrievers rises to the top.
 
-Embeddings are optional: without OPENAI_API_KEY the search runs on BM25 alone, so the
-project (and its tests) still work offline.
+Embeddings are optional and free by default: `fastembed` runs a small embedding model
+(BAAI/bge-small-en-v1.5) locally on your laptop. OpenAI embeddings can be used instead
+(EMBEDDINGS=openai). With EMBEDDINGS=none the search runs on BM25 alone.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 from rank_bm25 import BM25Okapi
 
+from rca.config import embeddings_provider
+
 ROOT = Path(__file__).resolve().parents[1]
 KNOWLEDGE_DIR = ROOT / "knowledge"
 EMBED_CACHE = ROOT / "data" / "embedding_cache.json"
-EMBED_MODEL = "text-embedding-3-small"
+OPENAI_EMBED_MODEL = "text-embedding-3-small"
+LOCAL_EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RRF_K = 60
 
 STOPWORDS = set("""a an and are as at be by for from has have if in into is it its of on or
@@ -95,29 +99,69 @@ def tokenize(text: str) -> list[str]:
 # 3b. Embeddings (optional, cached)
 # ---------------------------------------------------------------------------
 class Embedder:
-    """OpenAI embeddings with an on-disk cache, so documents are embedded once,
-    not on every run (saves time and money)."""
+    """Turns text into unit-length vectors, with an on-disk cache so each document is
+    embedded once, not on every run. Subclasses implement `_embed_raw`."""
+    model = "base"
 
-    def __init__(self, model: str = EMBED_MODEL, cache_path: Path = EMBED_CACHE):
-        from openai import OpenAI            # imported here so BM25-only mode needs no OpenAI setup
-        self.client = OpenAI()
-        self.model = model
+    def __init__(self, cache_path: Path = EMBED_CACHE):
         self.cache_path = cache_path
         self.cache: dict[str, list[float]] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
 
-    def _key(self, text: str) -> str:
-        return hashlib.sha256(f"{self.model}::{text}".encode()).hexdigest()
+    def _key(self, text: str, is_query: bool) -> str:
+        return hashlib.sha256(f"{self.model}::{is_query}::{text}".encode()).hexdigest()
 
-    def embed(self, texts: list[str]) -> np.ndarray:
-        missing = [t for t in texts if self._key(t) not in self.cache]
+    def _embed_raw(self, texts: list[str], is_query: bool) -> list[list[float]]:
+        raise NotImplementedError
+
+    def embed(self, texts: list[str], is_query: bool = False) -> np.ndarray:
+        missing = [t for t in texts if self._key(t, is_query) not in self.cache]
         if missing:
-            resp = self.client.embeddings.create(model=self.model, input=missing)
-            for t, item in zip(missing, resp.data):
-                self.cache[self._key(t)] = item.embedding
+            for t, vec in zip(missing, self._embed_raw(missing, is_query)):
+                self.cache[self._key(t, is_query)] = [float(v) for v in vec]
             self.cache_path.parent.mkdir(parents=True, exist_ok=True)
             self.cache_path.write_text(json.dumps(self.cache))
-        vecs = np.array([self.cache[self._key(t)] for t in texts], dtype=np.float32)
+        vecs = np.array([self.cache[self._key(t, is_query)] for t in texts], dtype=np.float32)
         return vecs / np.linalg.norm(vecs, axis=1, keepdims=True)     # unit length -> dot product = cosine
+
+
+class LocalEmbedder(Embedder):
+    """Free, offline embeddings with fastembed (downloads a ~70 MB model on first use).
+    bge models embed queries and passages slightly differently, hence `is_query`."""
+    model = LOCAL_EMBED_MODEL
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        from fastembed import TextEmbedding
+        self.engine = TextEmbedding(self.model)
+
+    def _embed_raw(self, texts, is_query):
+        fn = self.engine.query_embed if is_query else self.engine.passage_embed
+        return list(fn(texts))
+
+
+class OpenAIEmbedder(Embedder):
+    model = OPENAI_EMBED_MODEL
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        from openai import OpenAI
+        self.client = OpenAI(default_headers={"Accept-Encoding": "gzip, deflate"})
+
+    def _embed_raw(self, texts, is_query):
+        return [d.embedding for d in self.client.embeddings.create(model=self.model, input=texts).data]
+
+
+def make_embedder(provider: str) -> Embedder | None:
+    """Create the embedder, or return None (BM25-only) if it cannot load - e.g. no internet
+    for the first model download. Degrading gracefully beats crashing the whole assistant."""
+    cls = {"fastembed": LocalEmbedder, "openai": OpenAIEmbedder}.get(provider)
+    if cls is None:
+        return None
+    try:
+        return cls()
+    except Exception as err:                      # noqa: BLE001
+        warnings.warn(f"Embeddings ({provider}) unavailable, using BM25 only: {err}")
+        return None
 
 
 def reciprocal_rank_fusion(rankings: list[list[int]], k: int = RRF_K) -> dict[int, float]:
@@ -134,11 +178,11 @@ def reciprocal_rank_fusion(rankings: list[list[int]], k: int = RRF_K) -> dict[in
 # ---------------------------------------------------------------------------
 class KnowledgeBase:
     def __init__(self, knowledge_dir: Path = KNOWLEDGE_DIR, use_embeddings: bool | None = None):
+        """use_embeddings: None = decide from settings, False = BM25 only."""
         self.chunks = load_chunks(knowledge_dir)
         self.bm25 = BM25Okapi([tokenize(c.text) for c in self.chunks])
-        if use_embeddings is None:
-            use_embeddings = bool(os.getenv("OPENAI_API_KEY"))
-        self.embedder = Embedder() if use_embeddings else None
+        provider = embeddings_provider() if use_embeddings is not False else "none"
+        self.embedder = make_embedder(provider)
         self.vectors = self.embedder.embed([c.text for c in self.chunks]) if self.embedder else None
 
     @property
@@ -156,7 +200,7 @@ class KnowledgeBase:
 
         vec_rank: list[int] = []
         if self.embedder is not None:
-            q = self.embedder.embed([query])[0]
+            q = self.embedder.embed([query], is_query=True)[0]
             sims = self.vectors @ q
             vec_rank = sorted(allowed, key=lambda i: sims[i], reverse=True)[:candidates]
             rankings.append(vec_rank)
